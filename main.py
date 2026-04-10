@@ -25,45 +25,46 @@ def root():
 @app.get("/dashboard")
 def dashboard():
     try:
-        # Traigo todas las tablas crudas para debug
-        carretas = supabase.table("carretas").select("*").execute().data
-        choferes = supabase.table("choferes").select("*").execute().data
-        clientes = supabase.table("clientes").select("*").execute().data
-        transacciones = supabase.table("transacciones").select("*").execute().data
-        categorias = supabase.table("categorias").select("*").execute().data
-        tractores = supabase.table("tractores").select("*").execute().data
-        viajes = supabase.table("viajes").select("*").execute().data
-        config = supabase.table("config_global").select("*").execute().data
-        
-        # Devuelvo TODO crudo para ver qué hay
+        carretas = supabase.table("carretas").select("*").execute().data or []
+        choferes = supabase.table("choferes").select("*").execute().data or []
+        clientes = supabase.table("clientes").select("*").execute().data or []
+        transacciones = supabase.table("transacciones").select("*").execute().data or []
+        categorias = supabase.table("categorias").select("*").execute().data or []
+        tractores = supabase.table("tractores").select("*").execute().data or []
+        viajes = supabase.table("viajes").select("*").execute().data or []
+        config = supabase.table("config_global").select("*").execute().data or []
+
+        ingresos = sum(float(t.get("monto", 0)) for t in transacciones if t.get("tipo") == "ingreso")
+        gastos = sum(float(t.get("monto", 0)) for t in transacciones if t.get("tipo") == "egreso")
+
+        viajes_recientes = sorted(viajes, key=lambda x: x.get("fecha", ""), reverse=True)[:5]
+        viajes_recientes_map = [{
+            "id": v.get("id"),
+            "cliente": v.get("cliente", ""),
+            "origen": v.get("origen", ""),
+            "fecha": v.get("fecha", "")
+        } for v in viajes_recientes]
+
         return {
-            "debug": True,
-            "tablas": {
-                "transacciones": transacciones,
-                "viajes": viajes,
-                "tractores": tractores,
-                "carretas": carretas,
-                "choferes": choferes,
-                "clientes": clientes,
-                "categorias": categorias,
-                "config": config
-            },
-            "cantidad_filas": {
-                "transacciones": len(transacciones),
-                "viajes": len(viajes),
-                "tractores": len(tractores),
-                "carretas": len(carretas),
-                "choferes": len(choferes),
-                "clientes": len(clientes)
-            }
+            "success": True,
+            "ingresos": ingresos,
+            "gastos": gastos,
+            "camiones": len(tractores),
+            "viajesRecientes": viajes_recientes_map,
+            "alertas": [],
+            "tractores": [t.get("patente") for t in tractores if t.get("patente")],
+            "carretas": [c.get("patente") for c in carretas if c.get("patente")],
+            "categorias": [c.get("nombre") for c in categorias if c.get("nombre")],
+            "clientes": [c.get("nombre") for c in clientes if c.get("nombre")],
+            "choferes": [c.get("nombre") for c in choferes if c.get("nombre")],
+            "waAdmin": config[0].get("whatsapp_admin", "") if config else ""
         }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e), "viajesRecientes": [], "tractores": [], "carretas": [], "categorias": [], "clientes": [], "choferes": []}
 
 @app.post("/registrar-viaje")
 def registrar_viaje(data: dict):
     try:
-        data["fecha_creacion"] = datetime.now().isoformat()
         result = supabase.table("viajes").insert(data).execute()
         return {"success": True, "data": result.data}
     except Exception as e:
@@ -72,7 +73,6 @@ def registrar_viaje(data: dict):
 @app.post("/registrar-transaccion")
 def registrar_transaccion(data: dict):
     try:
-        data["fecha_creacion"] = datetime.now().isoformat()
         result = supabase.table("transacciones").insert(data).execute()
         return {"success": True, "data": result.data}
     except Exception as e:
@@ -81,7 +81,6 @@ def registrar_transaccion(data: dict):
 @app.post("/registrar-mantenimiento")
 def registrar_mantenimiento(data: dict):
     try:
-        data["fecha_creacion"] = datetime.now().isoformat()
         result = supabase.table("mantenimientos").insert(data).execute()
         return {"success": True, "data": result.data}
     except Exception as e:
