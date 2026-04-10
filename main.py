@@ -6,7 +6,6 @@ from datetime import datetime
 
 app = FastAPI()
 
-# Habilitar CORS para que funcione desde script.google.com
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,7 +14,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Conexión a Supabase usando las variables de Railway
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -27,35 +25,46 @@ def root():
 @app.get("/dashboard")
 def dashboard():
     try:
-        # Trae los datos iniciales que necesita tu Index.html
-        ingresos = supabase.table("ingresos").select("*").execute()
-        egresos = supabase.table("egresos").select("*").execute()
+        # Traigo todas las tablas que necesita tu dashboard
+        carretas = supabase.table("carretas").select("*").execute()
         choferes = supabase.table("choferes").select("*").execute()
         clientes = supabase.table("clientes").select("*").execute()
+        transacciones = supabase.table("transacciones").select("*").execute()
+        categorias = supabase.table("categorias").select("*").execute()
+        tractores = supabase.table("tractores").select("*").execute()
+        viajes = supabase.table("viajes").select("*").execute()
+        config = supabase.table("config_global").select("*").execute()
         
         return {
-            "ingresos": ingresos.data,
-            "egresos": egresos.data,
+            "success": True,
+            "carretas": carretas.data,
             "choferes": choferes.data,
-            "clientes": clientes.data
+            "clientes": clientes.data,
+            "transacciones": transacciones.data,
+            "categorias": categorias.data,
+            "tractores": tractores.data,
+            "viajes": viajes.data,
+            "config": config.data
         }
     except Exception as e:
-        return {"error": str(e)}
+        return {"success": False, "error": str(e)}
 
 @app.post("/registrar-ingreso")
 def registrar_ingreso(data: dict):
     try:
         data["fecha_creacion"] = datetime.now().isoformat()
-        result = supabase.table("ingresos").insert(data).execute()
-        return {"status": "ok", "data": result.data}
+        data["tipo"] = "ingreso"  # Marco que es ingreso
+        result = supabase.table("transacciones").insert(data).execute()
+        return {"success": True, "data": result.data}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"success": False, "error": str(e)}
 
 @app.post("/registrar-egreso")
 def registrar_egreso(data: dict):
     try:
         data["fecha_creacion"] = datetime.now().isoformat()
-        result = supabase.table("egresos").insert(data).execute()
-        return {"status": "ok", "data": result.data}
+        data["tipo"] = "egreso"  # Marco que es egreso
+        result = supabase.table("transacciones").insert(data).execute()
+        return {"success": True, "data": result.data}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"success": False, "error": str(e)}
