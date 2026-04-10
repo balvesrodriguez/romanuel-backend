@@ -1,3 +1,27 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from supabase import create_client, Client
+import os
+from datetime import datetime
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+@app.get("/")
+def root():
+    return {"status": "Romanuel FMS API online"}
+
 @app.get("/dashboard")
 def dashboard():
     try:
@@ -21,13 +45,44 @@ def dashboard():
                 "carretas": carretas,
                 "choferes": choferes,
                 "clientes": clientes,
-                "categorias": categorias
+                "categorias": categorias,
+                "config": config
             },
             "cantidad_filas": {
                 "transacciones": len(transacciones),
                 "viajes": len(viajes),
-                "tractores": len(tractores)
+                "tractores": len(tractores),
+                "carretas": len(carretas),
+                "choferes": len(choferes),
+                "clientes": len(clientes)
             }
         }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/registrar-viaje")
+def registrar_viaje(data: dict):
+    try:
+        data["fecha_creacion"] = datetime.now().isoformat()
+        result = supabase.table("viajes").insert(data).execute()
+        return {"success": True, "data": result.data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/registrar-transaccion")
+def registrar_transaccion(data: dict):
+    try:
+        data["fecha_creacion"] = datetime.now().isoformat()
+        result = supabase.table("transacciones").insert(data).execute()
+        return {"success": True, "data": result.data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/registrar-mantenimiento")
+def registrar_mantenimiento(data: dict):
+    try:
+        data["fecha_creacion"] = datetime.now().isoformat()
+        result = supabase.table("mantenimientos").insert(data).execute()
+        return {"success": True, "data": result.data}
     except Exception as e:
         return {"success": False, "error": str(e)}
